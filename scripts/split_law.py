@@ -31,7 +31,7 @@ NOISE_RES = [
     re.compile(r"^[่้]?เล่?ม \d+ ตอนที่ \d+ \S+$"),
     re.compile(r"^ราชกิจจานุเบกษา$"),
     re.compile(rf"^\d{{1,2}} ({_MONTHS}) \d{{4}}$"),
-    re.compile(r"^[่้]?ห้?น้?า \d+$"),
+    re.compile(r"^[่้]?ห้?น้?า \d+[่้]?$"),
 ]
 FOOTNOTE_MARK_LINE_RE = re.compile(r"^\[\d+\]$")
 HEADER_RE = re.compile(r"^มาตรา (\d+)(?:/(\d+))?(?: (ทวิ|ตรี|จัตวา|เบญจ))?(?= |$)")
@@ -50,6 +50,8 @@ def prepare_text(text: str) -> str:
 
     rows = []  # (ข้อความ, มีช่องว่างนำหน้า, มีช่องว่างต่อท้าย)
     for raw in text.split("\n"):
+        # วรรณยุกต์ที่หลุดจากหัวกระดาษมาค้างท้ายบรรทัด (" ้") ไม่ใช่เนื้อความ
+        raw = re.sub(r"\s[่้๊๋]\s*$", " ", raw)
         line = re.sub(r"\s+", " ", raw).strip()
         if line and not any(r.match(line) for r in NOISE_RES):
             rows.append((line, raw[:1].isspace(), raw[-1:].isspace()))

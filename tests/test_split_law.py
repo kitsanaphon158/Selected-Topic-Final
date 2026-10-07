@@ -99,3 +99,8 @@ def test_prepare_text_keeps_chapter_heading_and_title_lines():
 def test_prepare_text_accepts_sub_numbered_sections_in_order():
     raw = "มาตรา ๔ ข้อความ\nมาตรา ๔/๑ ข้อความ\nมาตรา ๕ ข้อความ\nมาตรา ๔ อ้างถึง"
     assert prepare_text(raw) == "มาตรา 4 ข้อความ\nมาตรา 4/1 ข้อความ\nมาตรา 5 ข้อความ มาตรา 4 อ้างถึง"
+
+
+def test_prepare_text_drops_gazette_page_number_with_displaced_tone_mark():
+    raw = "การให้บริการนั้น ๆ ้\nหนา   ๖๐่\nเลม   ๑๓๖   ตอนที่   ๖๙    ก\nราชกิจจานุเบกษา\n๒๗   พฤษภาคม   ๒๕๖๒\n\nเจ้าของข้อมูล"
+    assert prepare_text(raw) == "การให้บริการนั้น ๆ เจ้าของข้อมูล"

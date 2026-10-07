@@ -72,3 +72,15 @@ def test_is_relevant_uses_best_cosine():
     assert is_relevant([Hit(c, 0.03, 0.70), Hit(c, 0.02, 0.85)], 0.80)
     assert not is_relevant([Hit(c, 0.03, 0.70)], 0.80)
     assert not is_relevant([], 0.80)
+
+
+def test_search_returns_one_hit_per_section():
+    full = "มาตรา 118 ค่าชดเชย ส่วนแรก ส่วนที่สอง"
+    parts = [
+        make_chunk("labor", "118", "มาตรา 118 ให้นายจ้างจ่ายค่าชดเชย ลูกจ้างทำงานครบสามปี", part=0, section_text=full),
+        make_chunk("labor", "118", "(ต่อ) มาตรา 118 ลูกจ้างทำงานครบสิบปี ค่าชดเชยสามร้อยวัน", part=1, section_text=full),
+        make_chunk("labor", "32", "มาตรา 32 ลาป่วย"),
+    ]
+    hits = Retriever(parts).search("ค่าชดเชย ทำงานสิบปี", k=3)
+    assert [(h.chunk.section) for h in hits].count("118") == 1
+    assert len(hits) == 2

@@ -76,8 +76,17 @@ class Retriever:
         for ranking in (vector_rank, bm25_rank):
             for rank, i in enumerate(ranking):
                 fused[i] = fused.get(i, 0.0) + 1.0 / (RRF_K + rank + 1)
-        top = sorted(fused, key=fused.__getitem__, reverse=True)[:k]
-        return [Hit(self.chunks[i], fused[i], float(cosine[i])) for i in top]
+        # มาตรายาวมีหลาย chunk — คืนมาตราละหนึ่ง hit (ส่วนที่คะแนนดีที่สุด) เพราะจะส่งตัวบทเต็มของมาตราให้ LLM อยู่แล้ว
+        hits, seen = [], set()
+        for i in sorted(fused, key=fused.__getitem__, reverse=True):
+            c = self.chunks[i]
+            key = (c.law, c.section) if c.section else c.id
+            if key not in seen:
+                seen.add(key)
+                hits.append(Hit(c, fused[i], float(cosine[i])))
+            if len(hits) == k:
+                break
+        return hits
 
 
 def is_relevant(hits: list[Hit], threshold: float = DEFAULT_THRESHOLD) -> bool:

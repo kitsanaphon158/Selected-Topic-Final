@@ -60,3 +60,22 @@ def test_groq_errors_become_llm_error():
         llm.generate_answer(client, [], "q", "<context></context>")
     with pytest.raises(llm.LLMError):
         llm.rewrite_query(client, make_history(2), "q")
+
+
+def test_calls_use_low_reasoning_effort_and_room_for_reasoning_tokens():
+    client = fake_client("คำตอบ")
+    llm.generate_answer(client, [], "q", "<context></context>")
+    answer_kwargs = client.chat.completions.create.call_args.kwargs
+    llm.rewrite_query(client, make_history(2), "q")
+    rewrite_kwargs = client.chat.completions.create.call_args.kwargs
+    assert llm.MODEL == "openai/gpt-oss-120b"
+    assert answer_kwargs["reasoning_effort"] == rewrite_kwargs["reasoning_effort"] == "low"
+    assert answer_kwargs["max_tokens"] >= 2048 and rewrite_kwargs["max_tokens"] >= 512
+
+
+def test_rewrite_prompt_asks_for_a_thai_search_query_and_handles_no_history():
+    from rag.prompt import REWRITE_PROMPT
+    assert "ภาษาไทย" in REWRITE_PROMPT
+    client = fake_client("ลูกจ้างมีสิทธิหยุดพักผ่อนประจำปีกี่วัน")
+    assert llm.rewrite_query(client, [], "How many days of annual leave?") == "ลูกจ้างมีสิทธิหยุดพักผ่อนประจำปีกี่วัน"
+    assert "(ไม่มี)" in client.chat.completions.create.call_args.kwargs["messages"][-1]["content"]

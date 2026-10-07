@@ -5,7 +5,8 @@ from groq import Groq, GroqError
 
 from rag.prompt import REWRITE_PROMPT, SYSTEM_PROMPT
 
-MODEL = "llama-3.3-70b-versatile"
+# llama-3.3-70b-versatile ถูกถอดจาก Groq แล้ว; gpt-oss-120b ตอบตัวบทภาษาไทยได้ถูกต้องที่สุดในโมเดลที่เหลือ
+MODEL = "openai/gpt-oss-120b"
 HISTORY_MESSAGES = 6  # 3 รอบล่าสุด
 REWRITE_HISTORY_CHARS = 500
 
@@ -25,7 +26,12 @@ def _recent(history: list[dict]) -> list[dict]:
 def _chat(client, messages: list[dict], temperature: float, max_tokens: int) -> str:
     try:
         resp = client.chat.completions.create(
-            model=MODEL, messages=messages, temperature=temperature, max_tokens=max_tokens
+            model=MODEL,
+            messages=messages,
+            temperature=temperature,
+            # โมเดลนี้คิดก่อนตอบ และโทเคนที่ใช้คิดนับรวมใน max_tokens จึงตั้งเพดานเผื่อไว้
+            max_tokens=max_tokens,
+            reasoning_effort="low",
         )
     except GroqError as e:
         raise LLMError(str(e)) from e
@@ -36,12 +42,12 @@ def rewrite_query(client, history: list[dict], question: str) -> str:
     convo = "\n".join(
         f"{'ผู้ใช้' if m['role'] == 'user' else 'ผู้ช่วย'}: {m['content'][:REWRITE_HISTORY_CHARS]}"
         for m in _recent(history)
-    )
+    ) or "(ไม่มี)"
     messages = [
         {"role": "system", "content": REWRITE_PROMPT},
         {"role": "user", "content": f"ประวัติการสนทนา:\n{convo}\n\nคำถามล่าสุด: {question}"},
     ]
-    out = _chat(client, messages, temperature=0.0, max_tokens=200)
+    out = _chat(client, messages, temperature=0.0, max_tokens=512)
     return out.splitlines()[0].strip() if out else question
 
 
@@ -51,4 +57,4 @@ def generate_answer(client, history: list[dict], question: str, context: str) ->
         *_recent(history),
         {"role": "user", "content": f"{context}\n\nคำถาม: {question}"},
     ]
-    return _chat(client, messages, temperature=0.1, max_tokens=1024)
+    return _chat(client, messages, temperature=0.1, max_tokens=2048)

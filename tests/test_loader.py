@@ -101,3 +101,20 @@ def test_load_documents_and_chunks_read_sorted_txt(tmp_path):
     docs = load_documents(tmp_path)
     assert [d.source_file for d in docs] == ["labor_ch11.txt", "pdpa_ch01.txt"]
     assert [c.section for c in load_chunks(tmp_path)] == ["118", "118/1", "19"]
+
+
+def test_every_part_of_a_long_section_carries_the_full_section_text():
+    body = "มาตรา 118 ให้นายจ้างจ่ายค่าชดเชย\n" + "\n".join(f"({i}) ลูกจ้างซึ่งทำงานติดต่อกันครบ {i} ปี ให้จ่ายไม่น้อยกว่าค่าจ้างอัตราสุดท้าย" * 3 for i in range(1, 7))
+    doc = Document(text=body, law="labor", law_name="L", chapter="หมวด 11", source_file="labor_ch11.txt", source_url="u")
+    chunks = chunk_by_section(doc)
+    assert len(chunks) > 1
+    assert all(c.section_text == body for c in chunks)
+
+
+def test_continuation_windows_start_at_a_word_boundary():
+    words = ["ลูกจ้าง", "นายจ้าง", "ค่าชดเชย", "วันทำงาน"]
+    body = "มาตรา 9 " + " ".join(words[i % 4] for i in range(400))
+    doc = Document(text=body, law="labor", law_name="L", chapter="หมวด 1", source_file="labor_ch01.txt", source_url="u")
+    for c in chunk_by_section(doc)[1:]:
+        first_word = c.text.split("\n", 1)[1].split(" ", 1)[0]
+        assert first_word in words, first_word

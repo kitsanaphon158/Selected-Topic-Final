@@ -29,6 +29,7 @@ def test_system_prompt_states_rules():
     assert NOT_FOUND in SYSTEM_PROMPT
     assert "<context>" in SYSTEM_PROMPT
     assert "[1]" in SYSTEM_PROMPT
+    assert "ใช้เฉพาะบางกรณี" in SYSTEM_PROMPT  # มาตราแบบมีเงื่อนไข (เช่น ม.122) ต้องแยกเป็นข้อสังเกต
 
 
 def test_is_not_found_variants():
@@ -39,3 +40,10 @@ def test_is_not_found_variants():
         "ตามมาตรา 118 ลูกจ้างที่ทำงานครบสามปีแต่ไม่ครบหกปีมีสิทธิได้รับค่าชดเชย 180 วัน [1] "
         "หากไม่พบข้อมูลเพิ่มเติมให้สอบถามพนักงานตรวจแรงงาน"
     )
+
+
+def test_build_context_sends_the_full_section_not_the_window():
+    chunk = make_chunk("labor", "118", "(ต่อ) มาตรา 118 ส่วนที่สอง", part=1, section_text="มาตรา 118 ส่วนแรก ส่วนที่สอง")
+    ctx = build_context([Hit(chunk, 0.03, 0.9)])
+    assert "มาตรา 118 ส่วนแรก ส่วนที่สอง" in ctx
+    assert "(ต่อ)" not in ctx

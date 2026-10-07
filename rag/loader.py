@@ -44,6 +44,7 @@ class Chunk:
     section: str | None
     source_file: str
     source_url: str
+    section_text: str  # ตัวบทเต็มของมาตรา (chunk ย่อยของมาตรายาวใช้ค่าเดียวกัน) — ใช้ส่งให้ LLM และแสดงผล
 
 
 def clean_text(text: str) -> str:
@@ -105,6 +106,10 @@ def _split_long(text: str, max_chars: int, overlap: int) -> list[str]:
         if end >= len(text):
             return windows
         start = max(end - overlap, start + 1)
+        # เลื่อนจุดเริ่มไปที่ขอบคำถัดไป ไม่ให้ chunk เริ่มกลางคำ (เช่น "ูกจ้าง")
+        boundary = re.search(r"\s", text[start:end])
+        if boundary:
+            start += boundary.end()
 
 
 def chunk_by_section(doc: Document, max_chars: int = 800, overlap: int = 100) -> list[Chunk]:
@@ -135,6 +140,7 @@ def chunk_by_section(doc: Document, max_chars: int = 800, overlap: int = 100) ->
                     section=section,
                     source_file=doc.source_file,
                     source_url=doc.source_url,
+                    section_text=body,
                 )
             )
     return chunks

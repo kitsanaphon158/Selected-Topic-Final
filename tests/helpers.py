@@ -6,10 +6,13 @@ LAW_NAMES = {
 }
 
 
-def make_chunk(law: str, section: str | None, text: str, chapter: str = "หมวดทดสอบ") -> Chunk:
+def make_chunk(
+    law: str, section: str | None, text: str, chapter: str = "หมวดทดสอบ", part: int = 0, section_text: str | None = None
+) -> Chunk:
     return Chunk(
-        id=f"{law}_test#{section or 'pre'}-0",
+        id=f"{law}_test#{section or 'pre'}-{part}",
         text=text,
+        section_text=section_text or text,
         law=law,
         law_name=LAW_NAMES[law],
         chapter=chapter,

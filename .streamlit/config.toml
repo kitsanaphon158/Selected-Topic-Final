@@ -1,0 +1,21 @@
+# ธีมจาก ui-ux-pro-max: palette "Legal Services" (น้ำเงินเข้มสื่อความน่าเชื่อถือ + ทองเป็นจุดเน้น),
+# style Minimalism, ฟอนต์ IBM Plex Sans Thai (อ่านภาษาไทยชัด รองรับอังกฤษ)
+[theme]
+base = "light"
+primaryColor = "#1E3A8A"
+backgroundColor = "#F8FAFC"
+secondaryBackgroundColor = "#E9EEF5"
+textColor = "#0F172A"
+linkColor = "#1E40AF"
+borderColor = "#CBD5E1"
+baseRadius = "medium"
+baseFontSize = 16
+font = "'IBM Plex Sans Thai':https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap"
+headingFontWeights = [700, 600, 600]
+
+[theme.sidebar]
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F5F9"
+
+[client]
+toolbarMode = "minimal"

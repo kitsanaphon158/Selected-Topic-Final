@@ -108,6 +108,15 @@ def test_rewrite_failure_falls_back_to_original_question(monkeypatch):
     assert result.answer == "ok [1]"
 
 
+def test_non_thai_first_message_is_rewritten_into_a_thai_search_query(monkeypatch):
+    monkeypatch.setattr(pipeline.llm, "rewrite_query", lambda c, h, q: "ลูกจ้างมีสิทธิหยุดพักผ่อนประจำปีกี่วัน")
+    monkeypatch.setattr(pipeline.llm, "generate_answer", lambda *a: "At least 6 working days [1]")
+    retriever = FakeRetriever(0.9)
+    result, _ = run(retriever, question="How many days of annual leave do I get?")
+    assert retriever.queries == ["ลูกจ้างมีสิทธิหยุดพักผ่อนประจำปีกี่วัน"]
+    assert result.answer == "At least 6 working days [1]"
+
+
 @pytest.mark.parametrize("bad", ["", "   ", "ก" * 1001])
 def test_validate_question_rejects_blank_and_too_long(bad):
     assert pipeline.validate_question(bad)

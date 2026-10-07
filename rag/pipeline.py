@@ -1,6 +1,7 @@
 """ประกอบขั้นตอน RAG ต่อหนึ่งคำถาม: rewrite → retrieve → threshold → generate → ตรวจคำตอบ"""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from rag import llm
@@ -8,6 +9,7 @@ from rag.prompt import NOT_FOUND, build_context, is_not_found
 from rag.retriever import DEFAULT_THRESHOLD, Hit, is_relevant
 
 MAX_QUESTION_CHARS = 1000
+_THAI_RE = re.compile(r"[\u0E00-\u0E7F]")
 
 
 @dataclass
@@ -42,7 +44,8 @@ def answer_question(
     question = question.strip()
 
     search_query = question
-    if history:
+    # rewrite เมื่อเป็นคำถามต่อเนื่อง หรือคำถามไม่มีภาษาไทย (แปลเป็นคำค้นภาษาไทยก่อนค้นตัวบท)
+    if history or not _THAI_RE.search(question):
         try:
             search_query = llm.rewrite_query(client, history, question) or question
         except llm.LLMError:

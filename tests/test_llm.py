@@ -82,5 +82,5 @@ def test_rewrite_prompt_asks_for_a_thai_search_query_and_handles_no_history():
 
 
 def test_client_retries_rate_limits_several_times(monkeypatch):
-    client = llm.get_client("gsk_test_dummy")
+    client = llm.get_client("test-dummy-key")
     assert client.max_retries >= 5

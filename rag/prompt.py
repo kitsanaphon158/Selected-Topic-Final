@@ -5,6 +5,9 @@ from rag.loader import Chunk
 from rag.retriever import Hit
 
 NOT_FOUND = "ไม่พบข้อมูลในเอกสารที่มีอยู่"
+# จำกัดขนาด context ให้คำขอหนึ่งครั้งอยู่ในโควตา Groq แบบฟรี (8,000 token/นาที)
+MAX_SECTION_CHARS = 2500
+MAX_CONTEXT_CHARS = 7000
 DISCLAIMER = "หมายเหตุ: ข้อมูลเบื้องต้นจากตัวบทกฎหมาย ไม่ใช่คำปรึกษาทางกฎหมาย"
 
 SYSTEM_PROMPT = f"""คุณคือ "ผู้ช่วยกฎหมายสำหรับคนทำงาน" ตอบคำถามเรื่องสิทธิลูกจ้างตามพระราชบัญญัติคุ้มครองแรงงาน และเรื่องข้อมูลส่วนบุคคลตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล โดยใช้ตัวบทใน <context> ที่ให้มาเท่านั้น
@@ -34,7 +37,16 @@ def source_label(chunk: Chunk) -> str:
 
 
 def build_context(hits: list[Hit]) -> str:
-    blocks = [f"[{n}] {source_label(h.chunk)}\n{h.chunk.section_text}" for n, h in enumerate(hits, 1)]
+    blocks, budget = [], MAX_CONTEXT_CHARS
+    for n, h in enumerate(hits, 1):
+        text = h.chunk.section_text
+        limit = min(MAX_SECTION_CHARS, budget)
+        if limit <= 0:
+            break
+        if len(text) > limit:
+            text = text[:limit] + " …(ตัดทอน)"
+        budget -= len(text)
+        blocks.append(f"[{n}] {source_label(h.chunk)}\n{text}")
     return "<context>\n" + "\n\n".join(blocks) + "\n</context>"
 
 

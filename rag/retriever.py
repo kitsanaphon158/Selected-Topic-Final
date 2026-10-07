@@ -6,6 +6,9 @@ from dataclasses import dataclass
 # ต้อง import torch (ผ่าน sentence_transformers) ก่อน faiss — ถ้าสลับลำดับ libomp สองชุดชนกันแล้ว segfault บน macOS
 from sentence_transformers import SentenceTransformer  # isort: skip
 import faiss  # isort: skip
+
+# คลังเล็ก ค้นแบบเธรดเดียวก็เร็วพอ และกัน OpenMP ของ faiss ชนกับของ torch (ค้างเมื่อค้นหลาย query พร้อมกันบน macOS)
+faiss.omp_set_num_threads(1)
 import numpy as np
 from pythainlp.tokenize import word_tokenize
 from pythainlp.util import thai_digit_to_arabic_digit
@@ -26,7 +29,7 @@ GLOSSARY = {
     "พักร้อน": "หยุดพักผ่อนประจำปี",
     "โอที": "ทำงานล่วงเวลา ค่าล่วงเวลา",
     "ไล่ออก": "เลิกจ้าง ค่าชดเชย",
-    "ให้ออก": "เลิกจ้าง ค่าชดเชย",
+    "ให้ออกจากงาน": "เลิกจ้าง ค่าชดเชย",
     "ลาคลอด": "ลาเพื่อคลอดบุตร",
     "เงินเดือน": "ค่าจ้าง",
 }
@@ -71,19 +74,24 @@ class Retriever:
         return np.asarray(vectors, dtype="float32")
 
     def search(self, query: str, k: int = 4, laws: set[str] | None = None) -> list[Hit]:
-        query = expand_query(thai_digit_to_arabic_digit(query).strip())
+        query = thai_digit_to_arabic_digit(query).strip()
         allowed = [i for i, c in enumerate(self.chunks) if laws is None or c.law in laws]
         if not query or not allowed or k <= 0:
             return []
 
+        # จัดอันดับด้วยคำค้นที่ขยายด้วยอภิธานศัพท์ แต่ cosine ที่ใช้ตัดสิน threshold มาจากคำถามเดิม
+        # เพื่อไม่ให้คำถามนอกเรื่องที่บังเอิญมีคำในอภิธานศัพท์ได้คะแนนสูงจนผ่านด่าน
+        expanded = expand_query(query)
+        vectors = self._encode([f"query: {query}", f"query: {expanded}"] if expanded != query else [f"query: {query}"])
         # FAISS: คลังเล็ก (ไม่กี่ร้อย chunk) จึงค้นทั้งหมดแล้วกรองตามกฎหมายที่เลือก
-        scores, ids = self.index.search(self._encode([f"query: {query}"]), self.index.ntotal)
+        scores, ids = self.index.search(vectors, self.index.ntotal)
         cosine = np.zeros(len(self.chunks), dtype="float32")
         cosine[ids[0]] = scores[0]
+        rank_ids = ids[-1]
         allowed_set = set(allowed)
-        vector_rank = [int(i) for i in ids[0] if int(i) in allowed_set][:CANDIDATES]
+        vector_rank = [int(i) for i in rank_ids if int(i) in allowed_set][:CANDIDATES]
 
-        bm25_scores = self.bm25.get_scores(tokenize(query))
+        bm25_scores = self.bm25.get_scores(tokenize(expanded))
         bm25_rank = [
             i for i in sorted(allowed, key=lambda i: bm25_scores[i], reverse=True)
             if bm25_scores[i] > 0

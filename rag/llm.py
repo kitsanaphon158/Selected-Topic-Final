@@ -15,9 +15,9 @@ class LLMError(RuntimeError):
     """Groq ใช้งานไม่ได้ (เครือข่าย, rate limit, key ผิด ฯลฯ)"""
 
 
-def get_client(api_key: str) -> Groq:
-    # Groq แบบฟรีจำกัด 8,000 token/นาที — ให้ SDK รอแล้วลองใหม่เมื่อเจอ 429
-    return Groq(api_key=api_key, max_retries=5, timeout=30)
+def get_client(api_key: str, max_retries: int = 2) -> Groq:
+    # Groq แบบฟรีจำกัด 8,000 token/นาที — SDK รอแล้วลองใหม่เมื่อเจอ 429; ในแอปลองไม่กี่ครั้งเพื่อไม่ให้ผู้ใช้รอนาน
+    return Groq(api_key=api_key, max_retries=max_retries, timeout=30)
 
 
 def _recent(history: list[dict]) -> list[dict]:
@@ -58,4 +58,7 @@ def generate_answer(client, history: list[dict], question: str, context: str) ->
         *_recent(history),
         {"role": "user", "content": f"{context}\n\nคำถาม: {question}"},
     ]
-    return _chat(client, messages, temperature=0.1, max_tokens=2048)
+    answer = _chat(client, messages, temperature=0.1, max_tokens=1536)
+    if not answer:  # โมเดลใช้โทเคนไปกับการคิดจนหมด — ถือเป็นความล้มเหลว ไม่ใช่คำตอบว่าง
+        raise LLMError("LLM คืนคำตอบว่าง")
+    return answer

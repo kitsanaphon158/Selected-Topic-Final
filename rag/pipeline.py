@@ -42,6 +42,8 @@ def answer_question(
     if problem:
         raise ValueError(problem)
     question = question.strip()
+    if laws is not None and not laws:  # ไม่ได้เลือกกฎหมายใดเลย — ไม่ต้องค้นหรือเรียก LLM
+        return RagResult(NOT_FOUND, [], question)
 
     search_query = question
     # rewrite เมื่อเป็นคำถามต่อเนื่อง หรือคำถามไม่มีภาษาไทย (แปลเป็นคำค้นภาษาไทยก่อนค้นตัวบท)

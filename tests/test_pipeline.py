@@ -44,6 +44,16 @@ def test_no_law_selected_refuses_without_calling_llm():
     client.chat.completions.create.assert_not_called()
 
 
+def test_no_law_selected_skips_rewrite_even_with_history(monkeypatch):
+    def no_rewrite(*a):
+        raise AssertionError("ไม่ควรเรียก LLM เมื่อไม่ได้เลือกกฎหมาย")
+
+    monkeypatch.setattr(pipeline.llm, "rewrite_query", no_rewrite)
+    result, client = run(FakeRetriever(0.95), history=HISTORY, question="แล้วถ้า 5 ปีล่ะ", laws=set())
+    assert result.answer == NOT_FOUND
+    client.chat.completions.create.assert_not_called()
+
+
 def test_relevant_hits_produce_grounded_answer(monkeypatch):
     seen = {}
 

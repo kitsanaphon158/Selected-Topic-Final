@@ -105,3 +105,17 @@ def test_everyday_wording_finds_the_statutory_section():
     ]
     hits = Retriever(chunks).search("ข้อมูลลูกค้ารั่วไหล บริษัทต้องรีบบอกใคร", k=3)
     assert hits[0].chunk.section == "37"
+
+
+def test_threshold_cosine_comes_from_the_unexpanded_question(retriever):
+    import numpy as np
+
+    question = "ข้อมูลรั่วไหล ต้องแจ้งใคร"
+    hits = retriever.search(question, k=5)
+    raw = retriever._encode([f"query: {question}"])[0]
+    passages = retriever._encode([f"passage: {h.chunk.law_name} {h.chunk.chapter}\n{h.chunk.text}" for h in hits])
+    assert np.allclose([h.cosine for h in hits], passages @ raw, atol=1e-4)
+
+
+def test_glossary_keys_do_not_match_unrelated_phrases():
+    assert expand_query("หัวหน้าให้ออกไปทำงานต่างจังหวัด") == "หัวหน้าให้ออกไปทำงานต่างจังหวัด"

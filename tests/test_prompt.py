@@ -48,3 +48,13 @@ def test_build_context_sends_the_full_section_not_the_window():
     ctx = build_context([Hit(chunk, 0.03, 0.9)])
     assert "มาตรา 118 ส่วนแรก ส่วนที่สอง" in ctx
     assert "(ต่อ)" not in ctx
+
+
+def test_build_context_caps_each_section_and_the_total_size():
+    from rag.prompt import MAX_CONTEXT_CHARS, MAX_SECTION_CHARS
+    hits = [Hit(make_chunk("labor", str(n), "x", section_text=f"มาตรา {n} " + "ก" * 3000), 0.03, 0.9) for n in range(1, 7)]
+    ctx = build_context(hits)
+    assert len(ctx) <= MAX_CONTEXT_CHARS + 600
+    assert "ก" * (MAX_SECTION_CHARS + 1) not in ctx
+    assert "(ตัดทอน)" in ctx
+    assert "[1] " in ctx

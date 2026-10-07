@@ -79,7 +79,7 @@ with st.sidebar:
     st.caption("ตอบจากตัวบท พ.ร.บ.คุ้มครองแรงงาน และ PDPA ด้วยเทคนิค RAG")
     st.subheader("ขอบเขตกฎหมาย")
     laws = {code for code, name in LAWS.items() if st.checkbox(name, value=True, key=f"law_{code}")}
-    k = st.slider("จำนวนมาตราที่ค้น", min_value=2, max_value=8, value=4)
+    k = st.slider("จำนวนมาตราที่ค้น", min_value=2, max_value=6, value=4)
     if st.button("เริ่มแชตใหม่", icon=":material/refresh:", width="stretch"):
         st.session_state.messages = []
         st.rerun()
@@ -111,7 +111,7 @@ if not st.session_state.messages:
     st.markdown("**ลองถามคำถามตัวอย่าง:**")
     cols = st.columns(2)
     for i, example in enumerate(EXAMPLES):
-        if cols[i % 2].button(example, key=f"example_{i}", icon=":material/help:", width="stretch"):
+        if cols[i % 2].button(example, key=f"example_{i}", icon=":material/help:", width="stretch", disabled=not laws):
             pending = example
 
 if not laws:
@@ -125,7 +125,6 @@ if question:
         st.warning(problem, icon=":material/warning:")
         st.stop()
     history = list(st.session_state.messages)
-    st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user", avatar=AVATARS["user"]):
         render_message({"role": "user", "content": question})
     with st.chat_message("assistant", avatar=AVATARS["assistant"]):
@@ -133,7 +132,7 @@ if question:
             result = answer_question(
                 question, history, retriever, client, k=k, laws=laws, threshold=DEFAULT_THRESHOLD
             )
-        msg = to_message(result)
-        render_message(msg)
-    st.session_state.messages.append(msg)
-    st.rerun()  # วาดหน้าใหม่จากประวัติ เพื่อซ่อนปุ่มคำถามตัวอย่างหลังเริ่มแชต
+            # บันทึกคำถาม+คำตอบพร้อมกันก่อนเรียก st.* ตัวถัดไป — ถ้าผู้ใช้แตะ widget ระหว่างรอ
+            # Streamlit จะ rerun ที่การเรียก st.* ถัดไป และคำตอบที่ได้แล้วจะไม่หาย
+            st.session_state.messages += [{"role": "user", "content": question}, to_message(result)]
+    st.rerun()  # วาดหน้าใหม่จากประวัติ เพื่อซ่อนปุ่มคำถามตัวอย่างหลังเริ่มแชต  # วาดหน้าใหม่จากประวัติ เพื่อซ่อนปุ่มคำถามตัวอย่างหลังเริ่มแชต

@@ -47,7 +47,7 @@ def main() -> None:
         key = load_api_key()
         if not key:
             raise SystemExit("ไม่พบ GROQ_API_KEY (env หรือ .streamlit/secrets.toml) — ใช้ --no-llm ได้")
-        client = get_client(key)
+        client = get_client(key, max_retries=5)  # ประเมินทีละหลายข้อ ยอมรอ rate limit ได้
 
     ans_cos, unans_cos = [], []
     hit_ok = refusal_ok = false_refusal = 0

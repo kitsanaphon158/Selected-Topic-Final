@@ -70,7 +70,7 @@ def test_calls_use_low_reasoning_effort_and_room_for_reasoning_tokens():
     rewrite_kwargs = client.chat.completions.create.call_args.kwargs
     assert llm.MODEL == "openai/gpt-oss-120b"
     assert answer_kwargs["reasoning_effort"] == rewrite_kwargs["reasoning_effort"] == "low"
-    assert answer_kwargs["max_tokens"] >= 2048 and rewrite_kwargs["max_tokens"] >= 512
+    assert answer_kwargs["max_tokens"] == 1536 and rewrite_kwargs["max_tokens"] >= 512
 
 
 def test_rewrite_prompt_asks_for_a_thai_search_query_and_handles_no_history():
@@ -81,6 +81,11 @@ def test_rewrite_prompt_asks_for_a_thai_search_query_and_handles_no_history():
     assert "(ไม่มี)" in client.chat.completions.create.call_args.kwargs["messages"][-1]["content"]
 
 
-def test_client_retries_rate_limits_several_times(monkeypatch):
-    client = llm.get_client("test-dummy-key")
-    assert client.max_retries >= 5
+def test_client_retries_are_short_in_the_app_and_configurable():
+    assert llm.get_client("test-dummy-key").max_retries == 2
+    assert llm.get_client("test-dummy-key", max_retries=5).max_retries == 5
+
+
+def test_empty_answer_raises_llm_error():
+    with pytest.raises(llm.LLMError):
+        llm.generate_answer(fake_client("   "), [], "q", "<context></context>")

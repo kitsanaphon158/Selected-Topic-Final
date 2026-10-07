@@ -89,3 +89,22 @@ def test_client_retries_are_short_in_the_app_and_configurable():
 def test_empty_answer_raises_llm_error():
     with pytest.raises(llm.LLMError):
         llm.generate_answer(fake_client("   "), [], "q", "<context></context>")
+
+
+def test_rate_limited_main_model_falls_back_to_the_next_model():
+    request = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+    limited = groq.RateLimitError("tokens per day", response=httpx.Response(429, request=request), body=None)
+    ok = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="ได้ 300 วัน [1]"))])
+    client = MagicMock()
+    client.chat.completions.create.side_effect = [limited, ok]
+    assert llm.generate_answer(client, [], "q", "<context></context>") == "ได้ 300 วัน [1]"
+    models = [c.kwargs["model"] for c in client.chat.completions.create.call_args_list]
+    assert models == list(llm.MODELS)[:2] and models[0] == llm.MODEL
+
+
+def test_all_models_rate_limited_raises_llm_error():
+    request = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+    client = MagicMock()
+    client.chat.completions.create.side_effect = groq.RateLimitError("limit", response=httpx.Response(429, request=request), body=None)
+    with pytest.raises(llm.LLMError):
+        llm.generate_answer(client, [], "q", "<context></context>")

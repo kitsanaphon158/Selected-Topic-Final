@@ -4,7 +4,7 @@ import streamlit as st
 from rag.llm import get_client
 from rag.loader import LAWS, load_chunks
 from rag.pipeline import RagResult, answer_question, validate_question
-from rag.prompt import source_label
+from rag.prompt import DISCLAIMER, source_label
 from rag.retriever import DEFAULT_THRESHOLD, Retriever
 
 DATA_DIR = "data"
@@ -60,6 +60,7 @@ def render_message(msg: dict) -> None:
         return
     sources = msg.get("sources", [])
     if sources:
+        st.caption(DISCLAIMER)
         with st.expander(f"แหล่งอ้างอิง ({len(sources)} มาตรา)", icon=":material/menu_book:"):
             for n, s in enumerate(sources, 1):
                 with st.container(border=True):

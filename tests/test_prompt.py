@@ -1,4 +1,4 @@
-from rag.prompt import NOT_FOUND, SYSTEM_PROMPT, build_context, is_not_found, source_label
+from rag.prompt import DISCLAIMER, NOT_FOUND, SYSTEM_PROMPT, build_context, clean_answer, is_not_found, source_label
 from rag.retriever import Hit
 from tests.helpers import make_chunk
 
@@ -58,3 +58,33 @@ def test_build_context_caps_each_section_and_the_total_size():
     assert "ก" * (MAX_SECTION_CHARS + 1) not in ctx
     assert "(ตัดทอน)" in ctx
     assert "[1] " in ctx
+
+
+LOOPING = """ตามมาตรา 118 ได้ค่าชดเชย 180 วัน [1]
+
+หมายเหตุ: ข้อมูลเบื้องต้นจากตัวบทกฎหมาย ไม่ใช่คำปรึกษาทางกฎหมาย
+หมายเหตุ: ข้อมูลเบื้องต้นจากตัวบทกฎหมาย ไม่ใช่คำปรึกษาทางกฎหมาย
+หมายเหตุ: ข้อมูลจากตัวบทกฎหมาย ไม่ได้เป็นคำปรึกษาทางกฎหมาย
+หมายเหตุ: ข้อมูลจากกฎหมายไม่ใช่การอ้างอิง
+
+หมายเหตุ:
+ไม่ใช่คำปรึกษา
+
+หมายเหตุ:
+
+หมายเหตุ:
+
+หมาย"""
+
+
+def test_clean_answer_strips_looping_disclaimers_and_fragments():
+    assert clean_answer(LOOPING) == "ตามมาตรา 118 ได้ค่าชดเชย 180 วัน [1]"
+
+
+def test_clean_answer_keeps_substantive_notes_that_cite_sections():
+    answer = "ได้ 300 วัน [1]\n\n**หมายเหตุ:** หากถูกเลิกจ้างตามมาตรา 121 อาจได้ค่าชดเชยพิเศษตามมาตรา 122 [2]"
+    assert clean_answer(answer) == answer
+
+
+def test_prompt_no_longer_asks_the_llm_for_the_disclaimer():
+    assert DISCLAIMER not in SYSTEM_PROMPT

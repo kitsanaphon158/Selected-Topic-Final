@@ -68,6 +68,21 @@ def test_relevant_hits_produce_grounded_answer(monkeypatch):
     assert "[1] พระราชบัญญัติคุ้มครองแรงงาน" in seen["context"]
 
 
+def test_answer_is_cleaned_of_repeated_disclaimers(monkeypatch):
+    monkeypatch.setattr(
+        pipeline.llm, "generate_answer",
+        lambda *a: "ได้ 180 วัน [1]\nหมายเหตุ: ข้อมูลเบื้องต้น ไม่ใช่คำปรึกษาทางกฎหมาย\nหมายเหตุ: ข้อมูลเบื้องต้น ไม่ใช่คำปรึกษาทางกฎหมาย",
+    )
+    result, _ = run(FakeRetriever(0.9))
+    assert result.answer == "ได้ 180 วัน [1]"
+
+
+def test_answer_that_is_only_disclaimers_counts_as_an_error(monkeypatch):
+    monkeypatch.setattr(pipeline.llm, "generate_answer", lambda *a: "หมายเหตุ: ไม่ใช่คำปรึกษาทางกฎหมาย\nหมายเหตุ:")
+    result, _ = run(FakeRetriever(0.9))
+    assert result.answer is None and result.error and result.hits
+
+
 def test_llm_refusal_with_prefix_hides_sources(monkeypatch):
     monkeypatch.setattr(pipeline.llm, "generate_answer", lambda *a: "ขออภัย ไม่พบข้อมูลในเอกสารที่มีอยู่")
     result, _ = run(FakeRetriever(0.9))

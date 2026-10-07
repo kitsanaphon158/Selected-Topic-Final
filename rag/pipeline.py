@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass, field
 
 from rag import llm
-from rag.prompt import NOT_FOUND, build_context, is_not_found
+from rag.prompt import NOT_FOUND, build_context, clean_answer, is_not_found
 from rag.retriever import DEFAULT_THRESHOLD, Hit, is_relevant
 
 MAX_QUESTION_CHARS = 1000
@@ -58,10 +58,12 @@ def answer_question(
         return RagResult(NOT_FOUND, [], search_query)
 
     try:
-        answer = llm.generate_answer(client, history, question, build_context(hits))
+        answer = clean_answer(llm.generate_answer(client, history, question, build_context(hits)))
     except llm.LLMError as e:
         return RagResult(None, hits, search_query, error=str(e))
 
+    if not answer:  # เหลือแต่คำเตือนที่ถูกกรองออก — ไม่มีเนื้อคำตอบ
+        return RagResult(None, hits, search_query, error="LLM ไม่ได้ให้เนื้อคำตอบ")
     if is_not_found(answer):
         return RagResult(NOT_FOUND, [], search_query)
     return RagResult(answer, hits, search_query)

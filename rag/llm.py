@@ -1,12 +1,14 @@
 """เรียก Groq LLM สำหรับ query rewriting และสร้างคำตอบ"""
 from __future__ import annotations
 
-from groq import Groq, GroqError
+from groq import Groq, GroqError, RateLimitError
 
 from rag.prompt import REWRITE_PROMPT, SYSTEM_PROMPT
 
 # llama-3.3-70b-versatile ถูกถอดจาก Groq แล้ว; gpt-oss-120b ตอบตัวบทภาษาไทยได้ถูกต้องที่สุดในโมเดลที่เหลือ
 MODEL = "openai/gpt-oss-120b"
+# โมเดลสำรองมีโควตาแยกกัน — ใช้เมื่อโมเดลหลักติด rate limit (เช่น โควตารายวัน 200k token ของแบบฟรีหมด)
+MODELS = (MODEL, "openai/gpt-oss-20b")
 HISTORY_MESSAGES = 6  # 3 รอบล่าสุด
 REWRITE_HISTORY_CHARS = 500
 
@@ -25,15 +27,26 @@ def _recent(history: list[dict]) -> list[dict]:
 
 
 def _chat(client, messages: list[dict], temperature: float, max_tokens: int) -> str:
+    for model in MODELS:
+        try:
+            return _chat_once(client, model, messages, temperature, max_tokens)
+        except RateLimitError as e:
+            last = e
+    raise LLMError(str(last)) from last
+
+
+def _chat_once(client, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
     try:
         resp = client.chat.completions.create(
-            model=MODEL,
+            model=model,
             messages=messages,
             temperature=temperature,
             # โมเดลนี้คิดก่อนตอบ และโทเคนที่ใช้คิดนับรวมใน max_tokens จึงตั้งเพดานเผื่อไว้
             max_tokens=max_tokens,
             reasoning_effort="low",
         )
+    except RateLimitError:
+        raise
     except GroqError as e:
         raise LLMError(str(e)) from e
     return (resp.choices[0].message.content or "").strip()

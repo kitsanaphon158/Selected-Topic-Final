@@ -1,6 +1,8 @@
 """Prompt ที่บังคับให้ LLM ตอบจากตัวบทที่ค้นได้เท่านั้น"""
 from __future__ import annotations
 
+import re
+
 from rag.loader import Chunk
 from rag.retriever import Hit
 
@@ -20,7 +22,7 @@ SYSTEM_PROMPT = f"""คุณคือ "ผู้ช่วยกฎหมาย�
 2. ทุกประโยคที่อ้างกฎหมาย ต้องใส่เลขอ้างอิงในวงเล็บเหลี่ยมตามลำดับใน <context> เช่น [1] และระบุชื่อ พ.ร.บ. กับเลขมาตรา
 3. ถ้า <context> ไม่มีข้อมูลที่ตอบคำถามได้โดยตรง ให้ตอบประโยคนี้ประโยคเดียวเท่านั้น แม้คำถามเป็นภาษาอังกฤษ: "{NOT_FOUND}"
 4. ตอบเป็นภาษาเดียวกับคำถาม (ไทยหรืออังกฤษ) ใช้ภาษาที่ประชาชนทั่วไปเข้าใจง่าย ถ้าตัวบทเขียนจำนวนเป็นตัวหนังสือ ให้เขียนเป็นตัวเลขด้วย เช่น "หนึ่งร้อยแปดสิบวัน (180 วัน)"
-5. ถ้าตอบได้ ให้ปิดท้ายด้วยบรรทัด: "{DISCLAIMER}"
+5. ไม่ต้องเขียนหมายเหตุหรือคำเตือนว่า "ไม่ใช่คำปรึกษาทางกฎหมาย" ระบบจะแสดงให้เอง
 """
 
 # คลังตัวบทเป็นภาษาไทย คำค้นภาษาไทยจึงค้นได้แม่นกว่า (embedding ข้ามภาษาของโมเดลเล็กยังอ่อน)
@@ -48,6 +50,26 @@ def build_context(hits: list[Hit]) -> str:
         budget -= len(text)
         blocks.append(f"[{n}] {source_label(h.chunk)}\n{text}")
     return "<context>\n" + "\n\n".join(blocks) + "\n</context>"
+
+
+_NOTE_LINE_RE = re.compile(r"^[\s*_]*หมายเหตุ[\s*_:：]*(.*)$")
+
+
+def clean_answer(answer: str) -> str:
+    """ตัดคำเตือนท้ายคำตอบที่ LLM พิมพ์ซ้ำ (บางครั้งวนจนหมดโทเคน) และบรรทัดซ้ำติดกัน
+    แต่เก็บหมายเหตุที่เป็นเนื้อหา (อ้างมาตราหรือ [n]) ไว้"""
+    out: list[str] = []
+    for line in answer.strip().split("\n"):
+        s = line.strip()
+        note = _NOTE_LINE_RE.match(s)
+        if note and not re.search(r"มาตรา|\[\d+\]", note.group(1)):
+            continue
+        if s and ("หมายเหตุ".startswith(s) or ("คำปรึกษา" in s and len(s) < 80)):
+            continue
+        if s and out and out[-1].strip() == s:
+            continue
+        out.append(line)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()
 
 
 def is_not_found(answer: str) -> bool:

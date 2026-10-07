@@ -14,10 +14,22 @@ from rank_bm25 import BM25Okapi
 from rag.loader import Chunk
 
 DEFAULT_MODEL = "intfloat/multilingual-e5-small"
-# ปรับจากผล evaluate.py (Task 7) — ค่าสุดท้ายบันทึกใน README
-DEFAULT_THRESHOLD = 0.80
+# ปรับจากผล evaluate.py: cosine ต่ำสุดของคำถามที่มีคำตอบ (0.828) ลบ 0.02 — คำถามนอกเรื่องส่วนใหญ่ต่ำกว่านี้
+DEFAULT_THRESHOLD = 0.81
 CANDIDATES = 8
 RRF_K = 60
+
+# ภาษาชาวบ้าน -> ศัพท์ในตัวบท (query expansion) — ประชาชนมักไม่ใช้คำเดียวกับกฎหมาย
+GLOSSARY = {
+    "รั่วไหล": "การละเมิดข้อมูลส่วนบุคคล แจ้งเหตุ",
+    "ข้อมูลหลุด": "การละเมิดข้อมูลส่วนบุคคล แจ้งเหตุ",
+    "พักร้อน": "หยุดพักผ่อนประจำปี",
+    "โอที": "ทำงานล่วงเวลา ค่าล่วงเวลา",
+    "ไล่ออก": "เลิกจ้าง ค่าชดเชย",
+    "ให้ออก": "เลิกจ้าง ค่าชดเชย",
+    "ลาคลอด": "ลาเพื่อคลอดบุตร",
+    "เงินเดือน": "ค่าจ้าง",
+}
 
 
 @dataclass(frozen=True)
@@ -30,6 +42,11 @@ class Hit:
 def tokenize(text: str) -> list[str]:
     text = thai_digit_to_arabic_digit(text).lower()
     return [t for t in word_tokenize(text, engine="newmm", keep_whitespace=False) if t.strip()]
+
+
+def expand_query(query: str) -> str:
+    extra = [terms for word, terms in GLOSSARY.items() if word in query]
+    return " ".join([query, *extra]) if extra else query
 
 
 def _index_text(chunk: Chunk) -> str:
@@ -54,7 +71,7 @@ class Retriever:
         return np.asarray(vectors, dtype="float32")
 
     def search(self, query: str, k: int = 4, laws: set[str] | None = None) -> list[Hit]:
-        query = thai_digit_to_arabic_digit(query).strip()
+        query = expand_query(thai_digit_to_arabic_digit(query).strip())
         allowed = [i for i, c in enumerate(self.chunks) if laws is None or c.law in laws]
         if not query or not allowed or k <= 0:
             return []

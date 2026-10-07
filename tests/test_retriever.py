@@ -1,6 +1,6 @@
 import pytest
 
-from rag.retriever import Hit, Retriever, is_relevant, tokenize
+from rag.retriever import Hit, Retriever, expand_query, is_relevant, tokenize
 from tests.helpers import make_chunk
 
 CHUNKS = [
@@ -84,3 +84,24 @@ def test_search_returns_one_hit_per_section():
     hits = Retriever(parts).search("ค่าชดเชย ทำงานสิบปี", k=3)
     assert [(h.chunk.section) for h in hits].count("118") == 1
     assert len(hits) == 2
+
+
+def test_default_threshold_tuned_from_evaluation():
+    from rag.retriever import DEFAULT_THRESHOLD
+    assert DEFAULT_THRESHOLD == 0.81
+
+
+def test_expand_query_adds_statutory_terms_for_everyday_words():
+    assert "การละเมิดข้อมูลส่วนบุคคล" in expand_query("ข้อมูลลูกค้ารั่วไหล ต้องแจ้งใคร")
+    assert "หยุดพักผ่อนประจำปี" in expand_query("ลาพักร้อนได้กี่วัน")
+    assert expand_query("ลาป่วยได้กี่วัน") == "ลาป่วยได้กี่วัน"
+
+
+def test_everyday_wording_finds_the_statutory_section():
+    chunks = [
+        make_chunk("pdpa", "37", "มาตรา 37 ผู้ควบคุมข้อมูลส่วนบุคคลมีหน้าที่แจ้งเหตุการละเมิดข้อมูลส่วนบุคคลแก่สำนักงานภายในเจ็ดสิบสองชั่วโมง"),
+        make_chunk("pdpa", "23", "มาตรา 23 ในการเก็บรวบรวมข้อมูลส่วนบุคคล ผู้ควบคุมข้อมูลส่วนบุคคลต้องแจ้งให้เจ้าของข้อมูลส่วนบุคคลทราบ"),
+        make_chunk("pdpa", "25", "มาตรา 25 ห้ามมิให้ผู้ควบคุมข้อมูลส่วนบุคคลเก็บรวบรวมข้อมูลส่วนบุคคลจากแหล่งอื่นที่ไม่ใช่จากเจ้าของข้อมูลส่วนบุคคลโดยตรง"),
+    ]
+    hits = Retriever(chunks).search("ข้อมูลลูกค้ารั่วไหล บริษัทต้องรีบบอกใคร", k=3)
+    assert hits[0].chunk.section == "37"

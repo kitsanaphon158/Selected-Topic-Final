@@ -29,7 +29,8 @@ def test_system_prompt_states_rules():
     assert NOT_FOUND in SYSTEM_PROMPT
     assert "<context>" in SYSTEM_PROMPT
     assert "[1]" in SYSTEM_PROMPT
-    assert "ใช้เฉพาะบางกรณี" in SYSTEM_PROMPT  # มาตราแบบมีเงื่อนไข (เช่น ม.122) ต้องแยกเป็นข้อสังเกต
+    assert "ใช้เฉพาะบางกรณี" in SYSTEM_PROMPT
+    assert "ไม่เกี่ยวกับ" in SYSTEM_PROMPT  # คำถามนอกเรื่องต้องถูกปฏิเสธ  # มาตราแบบมีเงื่อนไข (เช่น ม.122) ต้องแยกเป็นข้อสังเกต
 
 
 def test_is_not_found_variants():

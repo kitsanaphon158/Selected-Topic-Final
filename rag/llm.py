@@ -16,7 +16,8 @@ class LLMError(RuntimeError):
 
 
 def get_client(api_key: str) -> Groq:
-    return Groq(api_key=api_key, max_retries=2, timeout=30)
+    # Groq แบบฟรีจำกัด 8,000 token/นาที — ให้ SDK รอแล้วลองใหม่เมื่อเจอ 429
+    return Groq(api_key=api_key, max_retries=5, timeout=30)
 
 
 def _recent(history: list[dict]) -> list[dict]:

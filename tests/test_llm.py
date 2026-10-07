@@ -79,3 +79,8 @@ def test_rewrite_prompt_asks_for_a_thai_search_query_and_handles_no_history():
     client = fake_client("ลูกจ้างมีสิทธิหยุดพักผ่อนประจำปีกี่วัน")
     assert llm.rewrite_query(client, [], "How many days of annual leave?") == "ลูกจ้างมีสิทธิหยุดพักผ่อนประจำปีกี่วัน"
     assert "(ไม่มี)" in client.chat.completions.create.call_args.kwargs["messages"][-1]["content"]
+
+
+def test_client_retries_rate_limits_several_times(monkeypatch):
+    client = llm.get_client("gsk_test_dummy")
+    assert client.max_retries >= 5
